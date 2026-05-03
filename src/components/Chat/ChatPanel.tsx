@@ -11,7 +11,7 @@ const SAMPLE_PROMPTS = [
 ];
 
 export function ChatPanel() {
-  const { messages, isThinking, sendMessage } = useApp();
+  const { messages, isThinking, sendMessage, clearChat } = useApp();
   const bottomRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll to bottom on new messages
@@ -33,9 +33,20 @@ export function ChatPanel() {
   return (
     <div className="flex flex-col h-full bg-background">
       {/* Header */}
-      <div className="px-5 py-3.5 border-b border-border flex-shrink-0">
-        <h2 className="text-text-primary text-sm font-medium">Chat with Claire</h2>
-        <p className="text-text-muted text-xs">Powered by Gemini 2.5 Flash</p>
+      <div className="px-5 py-3.5 border-b border-border flex-shrink-0 flex items-center justify-between">
+        <div>
+          <h2 className="text-text-primary text-sm font-medium">Chat with Claire</h2>
+          <p className="text-text-muted text-xs">Powered by Gemini 2.5 Flash</p>
+        </div>
+        {messages.length > 1 && (
+          <button
+            onClick={clearChat}
+            disabled={isDisabled}
+            className="text-xs text-text-muted hover:text-accent-red transition-colors duration-150 disabled:opacity-40"
+          >
+            Clear chat
+          </button>
+        )}
       </div>
 
       {/* Messages */}

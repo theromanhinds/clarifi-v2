@@ -31,6 +31,8 @@ type Action =
   | { type: 'ADD_MESSAGE'; payload: ChatMessage }
   | { type: 'SET_THINKING'; payload: boolean }
   | { type: 'UPDATE_LAST_MESSAGE'; payload: string }
+  | { type: 'CLEAR_CHAT' }
+  | { type: 'RESET_DASHBOARD' }
   | { type: 'RESET' };
 
 interface State {
@@ -370,6 +372,30 @@ function reducer(state: State, action: Action): State {
     case 'SET_THINKING':
       return { ...state, isThinking: action.payload };
 
+    case 'CLEAR_CHAT':
+      return { ...state, messages: [{ ...WELCOME_MESSAGE, timestamp: new Date() }], isThinking: false };
+
+    case 'RESET_DASHBOARD': {
+      if (state.appState.status !== 'loaded') return state;
+      // Re-run the engine from raw transactions with no overrides, keeping chat intact
+      const engine = buildEngine(state.appState.transactions, [], {
+        currentBalance: state.appState.engine.currentBalance,
+        incomeOverride: state.appState.incomeOverride,
+      });
+      return {
+        ...state,
+        appState: {
+          status: 'loaded',
+          transactions: state.appState.transactions,
+          engine,
+          lifeEvents: [],
+          incomeOverride: state.appState.incomeOverride,
+          payFrequency: state.appState.payFrequency,
+          dismissedRecurring: [],
+        },
+      };
+    }
+
     case 'RESET':
       localStorage.removeItem(STORAGE_KEY);
       return { appState: { status: 'empty' }, messages: [], isThinking: false };
@@ -507,6 +533,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     dispatch({ type: 'RESET' });
   }, []);
 
+  const clearChat = useCallback(() => {
+    dispatch({ type: 'CLEAR_CHAT' });
+  }, []);
+
+  const resetDashboard = useCallback(() => {
+    dispatch({ type: 'RESET_DASHBOARD' });
+  }, []);
+
   const value: AppContextValue = {
     state: state.appState,
     messages: state.messages,
@@ -524,6 +558,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     excludeTransaction,
     sendMessage,
     reset,
+    clearChat,
+    resetDashboard,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

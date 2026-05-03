@@ -122,4 +122,6 @@ export interface AppContextValue {
   excludeTransaction: (id: string) => void;
   sendMessage: (content: string) => Promise<void>;
   reset: () => void;
+  clearChat: () => void;
+  resetDashboard: () => void;
 }
