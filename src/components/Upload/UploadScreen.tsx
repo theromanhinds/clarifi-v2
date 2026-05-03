@@ -5,6 +5,7 @@ import { categorizeBatch } from '@/ai/categorizer';
 import { Spinner } from '@/components/shared/Spinner';
 import { CSVMapper } from './CSVMapper';
 import { Transaction } from '@/types';
+import { SANDBOX_TRANSACTIONS, SANDBOX_BALANCE, SANDBOX_INCOME, SANDBOX_PAY_FREQUENCY } from '@/data/sandboxData';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -394,6 +395,14 @@ type Stage = 'idle' | 'mapping' | 'analyzing' | 'categorizing' | 'error';
 
 export function UploadScreen() {
   const { loadTransactions } = useApp();
+
+  const loadSandbox = useCallback(() => {
+    loadTransactions(SANDBOX_TRANSACTIONS, {
+      currentBalance: SANDBOX_BALANCE,
+      incomeOverride: SANDBOX_INCOME,
+      payFrequency: SANDBOX_PAY_FREQUENCY,
+    });
+  }, [loadTransactions]);
   const [stage, setStage] = useState<Stage>('idle');
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState('');
@@ -678,6 +687,13 @@ export function UploadScreen() {
       <p className="mt-8 text-text-muted text-xs text-center max-w-xs leading-relaxed">
         All data stays in your browser. Nothing is uploaded to a server.
       </p>
+
+      <button
+        onClick={loadSandbox}
+        className="mt-6 text-text-muted text-xs hover:text-text-primary transition-colors underline underline-offset-2"
+      >
+        Try with sandbox data
+      </button>
     </div>
   );
 }
