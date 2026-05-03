@@ -1,5 +1,5 @@
 import { useApp } from '@/context/AppContext';
-import { useRef, useState, useCallback } from 'react';
+import { useRef, useState, useCallback, useEffect } from 'react';
 import { UploadScreen } from '@/components/Upload/UploadScreen';
 import { DashboardPanel } from '@/components/Dashboard/DashboardPanel';
 import { ChatPanel } from '@/components/Chat/ChatPanel';
@@ -12,6 +12,10 @@ export default function App() {
   const [leftPct, setLeftPct] = useState(40);
   const isDragging = useRef(false);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  // Mobile state
+  const [mobileView, setMobileView] = useState<'dashboard' | 'chat'>('dashboard');
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   const onMouseDown = useCallback(() => {
     isDragging.current = true;
@@ -32,23 +36,28 @@ export default function App() {
     document.body.style.userSelect = '';
   }, []);
 
+  // Close drawer on escape key
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setDrawerOpen(false); };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, []);
+
   if (state.status === 'empty') {
     return <UploadScreen />;
   }
 
   const { engine, lifeEvents, transactions } = state;
 
+  const switchView = (view: 'dashboard' | 'chat') => {
+    setMobileView(view);
+    setDrawerOpen(false);
+  };
+
   return (
     <div className="flex h-screen overflow-hidden bg-background">
-      {/* Header — mobile only */}
-      <div className="md:hidden fixed top-0 left-0 right-0 z-10 bg-background border-b border-border px-4 py-3 flex items-center justify-between">
-        <span className="font-display text-xl text-text-primary">Clarifi</span>
-        <span className="text-text-muted text-xs font-mono">
-          ${engine.currentBalance.toLocaleString('en-US', { maximumFractionDigits: 0 })}
-        </span>
-      </div>
 
-      {/* Desktop 2-col layout */}
+      {/* ── Desktop 2-col layout (≥800px) ──────────────────────────────── */}
       <div
         ref={containerRef}
         className="hidden md:flex w-full"
@@ -73,7 +82,7 @@ export default function App() {
           className="w-1 flex-shrink-0 cursor-col-resize hover:bg-accent-blue/30 active:bg-accent-blue/50 transition-colors duration-150 group relative"
           title="Drag to resize"
         >
-          <div className="absolute inset-y-0 -left-1 -right-1" /> {/* wider hit area */}
+          <div className="absolute inset-y-0 -left-1 -right-1" />
         </div>
 
         {/* Right — Chat */}
@@ -82,20 +91,75 @@ export default function App() {
         </div>
       </div>
 
-      {/* Mobile — stacked */}
-      <div className="md:hidden flex flex-col w-full h-full pt-[52px]">
-        {/* On mobile: dashboard collapses to a summary at top, chat takes main space */}
-        <div className="flex-1 overflow-hidden flex flex-col">
-          {/* Scrollable dashboard summary */}
-          <div className="px-4 py-4 border-b border-border overflow-y-auto max-h-[45vh]">
-            <DashboardPanel engine={engine} lifeEvents={lifeEvents} transactions={transactions} />
+      {/* ── Mobile layout (<800px) ──────────────────────────────────────── */}
+      <div className="md:hidden flex flex-col w-full h-full">
+
+        {/* Mobile header */}
+        <div className="flex-shrink-0 bg-background border-b border-border px-4 py-3 flex items-center justify-between">
+          {/* Hamburger / close */}
+          <button
+            onClick={() => setDrawerOpen((o) => !o)}
+            className="flex flex-col justify-center gap-[5px] w-8 h-8 -ml-1"
+            aria-label="Open navigation"
+          >
+            <span className={`block h-px bg-text-primary transition-all duration-200 origin-center ${drawerOpen ? 'rotate-45 translate-y-[6px]' : ''}`} />
+            <span className={`block h-px bg-text-primary transition-all duration-200 ${drawerOpen ? 'opacity-0 scale-x-0' : ''}`} />
+            <span className={`block h-px bg-text-primary transition-all duration-200 origin-center ${drawerOpen ? '-rotate-45 -translate-y-[6px]' : ''}`} />
+          </button>
+
+          <span className="font-display text-xl text-text-primary">Clarifi</span>
+
+          <div className="w-8" />{/* spacer to keep title centered */}
+        </div>
+
+        {/* Content area (drawer + view stacked) */}
+        <div className="flex-1 overflow-hidden relative">
+
+          {/* Side drawer */}
+          <div
+            className={`absolute inset-y-0 left-0 z-30 w-64 bg-surface border-r border-border flex flex-col py-6 px-4 transition-transform duration-250 ease-in-out ${drawerOpen ? 'translate-x-0' : '-translate-x-full'}`}
+          >
+            <p className="text-text-muted text-xs uppercase tracking-wider mb-4">Views</p>
+            <nav className="flex flex-col gap-1">
+              <button
+                onClick={() => switchView('dashboard')}
+                className={`text-left px-4 py-3 rounded-lg text-sm font-medium transition-colors duration-150 ${mobileView === 'dashboard' ? 'bg-accent-blue/15 text-accent-blue' : 'text-text-primary hover:bg-border'}`}
+              >
+                Dashboard
+              </button>
+              <button
+                onClick={() => switchView('chat')}
+                className={`text-left px-4 py-3 rounded-lg text-sm font-medium transition-colors duration-150 ${mobileView === 'chat' ? 'bg-accent-blue/15 text-accent-blue' : 'text-text-primary hover:bg-border'}`}
+              >
+                Chat with Claire
+              </button>
+            </nav>
           </div>
-          {/* Chat fills remaining */}
-          <div className="flex-1 overflow-hidden">
-            <ChatPanel />
+
+          {/* Backdrop */}
+          {drawerOpen && (
+            <div
+              className="absolute inset-0 z-20 bg-black/50"
+              onClick={() => setDrawerOpen(false)}
+            />
+          )}
+
+          {/* Active view */}
+          <div className="h-full overflow-hidden">
+            {mobileView === 'dashboard' ? (
+              <div className="h-full overflow-y-auto px-4 py-5">
+                <DashboardPanel engine={engine} lifeEvents={lifeEvents} transactions={transactions} />
+              </div>
+            ) : (
+              <div className="h-full flex flex-col overflow-hidden">
+                <ChatPanel />
+              </div>
+            )}
           </div>
+
         </div>
       </div>
+
     </div>
   );
 }

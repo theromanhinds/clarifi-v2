@@ -145,7 +145,7 @@ export function SummaryCards({ engine }: SummaryCardsProps) {
   const surplusIsOutput = solveFor === 'surplus';
 
   return (
-    <div className="grid grid-cols-3 gap-3">
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
 
       {/* ── Income Card ── */}
       <div className={`bg-surface border rounded-lg p-4 flex flex-col gap-2 ${incomeIsOutput ? 'border-accent-blue/40' : 'border-border'}`}>
