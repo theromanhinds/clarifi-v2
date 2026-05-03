@@ -1,4 +1,4 @@
-import { getAI, getGenerativeModel, GoogleAIBackend } from 'firebase/ai';
+import { getAI, getGenerativeModel, VertexAIBackend } from 'firebase/ai';
 import { app } from '@/lib/firebase';
 
 export const VALID_CATEGORIES = [
@@ -19,7 +19,7 @@ export async function categorizeBatch(
 ): Promise<Map<string, string>> {
   if (descriptions.length === 0) return new Map();
 
-  const ai = getAI(app, { backend: new GoogleAIBackend() });
+  const ai = getAI(app, { backend: new VertexAIBackend() });
   const model = getGenerativeModel(ai, {
     model: 'gemini-2.5-flash',
     generationConfig: { responseMimeType: 'application/json' },
@@ -48,22 +48,34 @@ Example: {"AMAZON PRIME *AB1CD2": "Subscriptions", "CHASE CREDIT CARD PMT": "Deb
 Transaction descriptions to categorize:
 ${descriptions.map((d) => JSON.stringify(d)).join('\n')}`;
 
-  try {
-    const result = await model.generateContent(prompt);
-    const text = result.response.text().trim();
-    // Strip markdown code fences if model wraps in ```json ... ```
-    const json = text.replace(/^```json?\s*/i, '').replace(/\s*```$/i, '');
-    const parsed: Record<string, string> = JSON.parse(json);
+  const maxRetries = 3;
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      const result = await model.generateContent(prompt);
+      const text = result.response.text().trim();
+      // Strip markdown code fences if model wraps in ```json ... ```
+      const json = text.replace(/^```json?\s*/i, '').replace(/\s*```$/i, '');
+      const parsed: Record<string, string> = JSON.parse(json);
 
-    const map = new Map<string, string>();
-    for (const [desc, cat] of Object.entries(parsed)) {
-      if (VALID_CATEGORIES.includes(cat as Category)) {
-        map.set(desc, cat);
+      const map = new Map<string, string>();
+      for (const [desc, cat] of Object.entries(parsed)) {
+        if (VALID_CATEGORIES.includes(cat as Category)) {
+          map.set(desc, cat);
+        }
       }
+      return map;
+    } catch (err) {
+      const is429 =
+        err instanceof Error &&
+        (err.message.includes('429') || err.message.toLowerCase().includes('quota'));
+      if (is429 && attempt < maxRetries - 1) {
+        // Exponential backoff: 2s, 4s
+        await new Promise((r) => setTimeout(r, 2000 * Math.pow(2, attempt)));
+        continue;
+      }
+      // Silent fallback — caller keeps the keyword-inferred "Other" category
+      return new Map();
     }
-    return map;
-  } catch {
-    // Silent fallback — caller keeps the keyword-inferred "Other" category
-    return new Map();
   }
+  return new Map();
 }
