@@ -1,4 +1,4 @@
-import { getAI, getGenerativeModel, GoogleAIBackend, Content } from 'firebase/ai';
+import { getAI, getGenerativeModel, VertexAIBackend, Content } from 'firebase/ai';
 import { app } from '@/lib/firebase';
 import { ChatMessage } from '@/types';
 
@@ -28,13 +28,13 @@ let aiReady = false;
 
 function getModel(systemInstruction: string) {
   console.log('[Claire AI] Initializing Firebase AI Logic backend...');
-  const ai = getAI(app, { backend: new GoogleAIBackend() });
+  const ai = getAI(app, { backend: new VertexAIBackend() });
   const model = getGenerativeModel(ai, {
     model: 'gemini-2.5-flash',
     systemInstruction,
   });
   if (!aiReady) {
-    console.log('[Claire AI] Firebase AI Logic ready ✓ (Gemini 2.5 Flash via GoogleAI backend)');
+    console.log('[Claire AI] Firebase AI Logic ready ✓ (Gemini 2.5 Flash via Vertex AI backend)');
     aiReady = true;
   }
   return model;
